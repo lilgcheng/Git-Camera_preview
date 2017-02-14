@@ -23,7 +23,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     SurfaceHolder previewSurfaceHolder;
     boolean previewing = false;
     ImageView ImgView;
+    private Bitmap bitmapClone;
     private StreamIt streamIt = null;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -85,14 +87,18 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         myCamera = null;
         previewing = false;
     }
+
     class StreamIt implements Camera.PreviewCallback {
         @Override
         public void onPreviewFrame(byte[] data, Camera camera) {
 //            Log.i(TAG, "执行了capture方法");
             Bitmap bitmap = NV21_TO_RGB(data, 640, 480);//NV21 RGB
+            bitmap = Binarization(bitmap,640,480);
+//            Bitmap bitmap = NV21_TO_GRAY(data, 640, 480);//NV21 RGB
             ImgView.setImageBitmap(bitmap);
         }
     }
+
     public Bitmap NV21_TO_RGB(byte[] data, int width, int height) {
         final int frameSize = width * height;
         int[] rgb = new int[width * height];
@@ -123,5 +129,45 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         }
 
         return Bitmap.createBitmap(rgb, width, height, Bitmap.Config.ARGB_8888);
+    }
+
+    public Bitmap NV21_TO_GRAY(byte[] data, int width, int height) {
+        int[] pixels = new int[width * height];
+        int grey;
+        int size = width * height;
+
+        for (int i = 0; i < size; i++) {
+            grey = data[i] & 0xFF;
+            pixels[i] = 0xff000000 | grey << 16 | grey << 8 | grey;
+        }
+        return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888);
+    }
+
+    public Bitmap Binarization(Bitmap bimrgb, int width, int height) {
+        int iY = 0;
+        int iX = 0;
+        int iPixel = 0;
+        int iRed = 0;
+        int iGreen = 0;
+        int iBlue = 0;
+        int iRGBAvg = 0;
+
+        bitmapClone = Bitmap.createBitmap(bimrgb.getWidth(), bimrgb.getHeight(), bimrgb.getConfig());
+        for (iY = 0; iY < bitmapClone.getHeight(); iY++) {
+            for (iX = 0; iX < bitmapClone.getWidth(); iX++) {// 影像的寬度
+                iPixel = bimrgb.getPixel(iX, iY);// 獲得像素值
+                iRed = Color.red(iPixel);// 獲得紅色像素
+                iGreen = Color.green(iPixel);// 獲得綠色像素
+                iBlue = Color.blue(iPixel);// 獲得藍色像素
+                iRGBAvg = (iRed + iGreen + iBlue) / 3;// 計算灰階值
+                if (iRGBAvg > 120) {// 當灰階值大於門檻值
+                    bitmapClone.setPixel(iX, iY, Color.rgb(255, 255, 255));// 設定像素為白色
+                } else {
+
+                    bitmapClone.setPixel(iX, iY, Color.rgb(0, 0, 0));// 設定像素為黑色
+                }
+            }
+        }
+        return bitmapClone;
     }
 }
